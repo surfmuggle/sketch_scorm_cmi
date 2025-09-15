@@ -77,6 +77,10 @@ func (h *Handlers) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error fetching recent courses: %v", err)
 		// Continue with empty courses list
 	}
+
+	if len(courses) < 3 {
+		log.Printf("Error fetching recent courses: %+v", courses)
+	}
 	
 	data := map[string]interface{}{
 		"Title":   "Dashboard",

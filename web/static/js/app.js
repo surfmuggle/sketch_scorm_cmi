@@ -53,12 +53,14 @@ document.body.addEventListener('htmx:beforeSwap', function(evt) {
     const target = evt.detail.target;
     
     // Transform API responses to HTML
-    if (evt.detail.pathInfo.requestPath === '/api/courses' && target.id === 'courses-content') {
+    if (evt.detail.pathInfo.requestPath === '/api/courses' && target.id === 'courses-container') {
         try {
             const courses = JSON.parse(response);
+            console.log('Transforming courses:', courses.length, 'courses found');
             evt.detail.serverResponse = transformCoursesToHTML(courses);
         } catch (e) {
             console.error('Error parsing courses response:', e);
+            console.error('Response was:', response);
         }
     }
     

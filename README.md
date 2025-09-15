@@ -90,7 +90,7 @@ The application will start on port 8080 by default.
 Open your browser to `http://localhost:8080` to access the web interface:
 
 - **Dashboard**: System overview with statistics
-- **Courses**: Upload and manage SCORM packages
+- **Courses**: Upload and manage SCORM packages at `/courses`
 - **Registrations**: View and manage learner enrollments
 
 ### API Endpoints
@@ -284,3 +284,70 @@ For issues and questions:
 - Check the OpenAPI specification for API details
 - Review the source code for implementation details
 - Create GitHub issues for bugs or feature requests
+
+## Course Management UI Architecture
+
+The course management system uses **HTMX** for dynamic interactions and **Bulma CSS** for styling:
+
+### Data Loading Flow
+
+1. **Course List** (`/courses`):
+   - Page loads with empty container showing loading spinner
+   - HTMX automatically triggers `GET /api/courses` on page load via `hx-get` attribute
+   - JavaScript `htmx:beforeSwap` event intercepts JSON response
+   - `transformCoursesToHTML(courses)` converts JSON to Bulma card HTML
+   - Courses display in responsive grid layout with action buttons
+
+2. **Course Creation** (`/courses/create`):
+   - Form submission uses HTMX `POST /courses/create`
+   - Server validates and creates course, returns `HX-Redirect` header
+   - HTMX automatically redirects to new course detail page
+
+3. **Course Details** (`/courses/{id}#slug`):
+   - URL uses course title as slug for SEO-friendly URLs
+   - Edit mode activated with `?edit=true` query parameter
+   - Analytics loaded dynamically via `GET /api/reports/course/{id}`
+
+4. **Course Updates**:
+   - Form uses method override: `<input type="hidden" name="_method" value="PUT">`
+   - HTMX sends `POST /courses/{id}` with `_method=PUT`
+   - Server processes as PUT request and redirects
+
+### Key Functions
+
+**Frontend (JavaScript)**:
+- `transformCoursesToHTML(courses)` - Converts JSON course array to Bulma card HTML
+- `createSlug(title)` - Creates URL-friendly slugs from course titles  
+- `launchCourse(courseId)` - Prompts for learner details and launches course
+- `showUploadModal()` / `hideUploadModal()` - SCORM package upload interface
+
+**Backend (Go)**:
+- `HandleCoursesListPage()` - Serves course list template
+- `HandleCourseCreatePage()` - Handles GET (form) and POST (submission)
+- `HandleCourseDetailPage()` - Shows course details with edit mode support
+- `createCourseFromForm()` - Processes form data and creates course
+- `updateCourseFromForm()` - Updates existing course from form data
+
+### Routing Architecture
+
+```
+Web UI Routes (HTML responses):
+/courses/create     → Course creation form
+/courses/{id}       → Course detail/edit pages  
+/courses            → Course list page
+
+API Routes (JSON responses):
+/api/courses/{id}   → Individual course CRUD
+/api/courses        → Course collection operations
+```
+
+### Troubleshooting Course Loading
+
+If courses don't appear on `/courses`:
+
+1. **Check Browser Console**: Look for JavaScript errors in transformation
+2. **Verify API**: `curl http://localhost:8080/api/courses` should return JSON
+3. **Check HTMX**: Network tab should show `GET /api/courses` request
+4. **Debug Transform**: Console should log "Transforming courses: N courses found"
+
+The system uses event-driven architecture where HTMX triggers API calls and JavaScript transforms the responses for seamless user experience.

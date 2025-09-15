@@ -25,16 +25,16 @@ func main() {
 	// Serve static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 
-	// Web UI routes
+	// Web UI routes (more specific patterns first)
 	mux.HandleFunc("/", h.HandleIndex)
-	mux.HandleFunc("/courses", h.HandleCoursesListPage)
 	mux.HandleFunc("/courses/create", h.HandleCourseCreatePage)
 	mux.HandleFunc("/courses/", h.HandleCourseDetailPage)
+	mux.HandleFunc("/courses", h.HandleCoursesListPage)
 	mux.HandleFunc("/registrations", h.HandleRegistrationsPage)
 
-	// API routes
-	mux.HandleFunc("/api/courses", h.HandleCourses)
+	// API routes (more specific patterns first)
 	mux.HandleFunc("/api/courses/", h.HandleCourse)
+	mux.HandleFunc("/api/courses", h.HandleCourses)
 	mux.HandleFunc("/api/packages/upload", h.HandlePackageUpload)
 	mux.HandleFunc("/api/registrations", h.HandleRegistrations)
 	mux.HandleFunc("/api/registrations/", h.HandleRegistration)

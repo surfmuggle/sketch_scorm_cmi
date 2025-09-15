@@ -119,8 +119,18 @@ func (h *Handlers) HandleCourseCreatePage(w http.ResponseWriter, r *http.Request
 
 // HandleCourseDetailPage serves individual course pages
 func (h *Handlers) HandleCourseDetailPage(w http.ResponseWriter, r *http.Request) {
+	// Skip if this is the courses list page or create page
+	if r.URL.Path == "/courses" || r.URL.Path == "/courses/" {
+		http.NotFound(w, r)
+		return
+	}
+	if r.URL.Path == "/courses/create" {
+		http.NotFound(w, r)
+		return
+	}
+
 	courseID := extractCourseIDFromPath(r.URL.Path)
-	if courseID == "" {
+	if courseID == "" || courseID == "create" {
 		http.NotFound(w, r)
 		return
 	}

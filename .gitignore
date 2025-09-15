@@ -1,0 +1,11 @@
+# Binary
+scorm-cmi-app
+
+# Database
+*.db
+
+# Uploads
+uploads/
+
+# Logs
+*.log

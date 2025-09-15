@@ -1,0 +1,85 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="dashboard">
+    <h2>Dashboard</h2>
+    
+    <div class="stats-grid" hx-get="/api/reports/summary" hx-trigger="load" hx-target="#stats-content">
+        <div id="stats-content">
+            <div class="stat-card loading">
+                <h3>Loading...</h3>
+                <p>Fetching statistics...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="quick-actions">
+        <h3>Quick Actions</h3>
+        <div class="action-buttons">
+            <button hx-get="/courses" hx-target="#main-content" class="btn btn-primary">
+                Manage Courses
+            </button>
+            <button hx-get="/registrations" hx-target="#main-content" class="btn btn-secondary">
+                View Registrations
+            </button>
+            <button onclick="showUploadModal()" class="btn btn-success">
+                Upload SCORM Package
+            </button>
+        </div>
+    </div>
+    
+    <div class="recent-activity">
+        <h3>Recent Activity</h3>
+        <div hx-get="/api/registrations?limit=5" hx-trigger="load" hx-target="#recent-registrations">
+            <div id="recent-registrations">
+                <div class="loading">Loading recent activity...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="hideUploadModal()">&times;</span>
+        <h3>Upload SCORM Package</h3>
+        <form hx-post="/api/packages/upload" hx-encoding="multipart/form-data" hx-target="#upload-result">
+            <div class="form-group">
+                <label for="title">Course Title:</label>
+                <input type="text" id="title" name="title" required>
+            </div>
+            <div class="form-group">
+                <label for="description">Description:</label>
+                <textarea id="description" name="description" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="package">SCORM Package (ZIP):</label>
+                <input type="file" id="package" name="package" accept=".zip" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload Package</button>
+        </form>
+        <div id="upload-result"></div>
+    </div>
+</div>
+
+<script>
+function showUploadModal() {
+    document.getElementById('uploadModal').style.display = 'block';
+}
+
+function hideUploadModal() {
+    document.getElementById('uploadModal').style.display = 'none';
+    document.getElementById('upload-result').innerHTML = '';
+}
+
+// Handle successful upload
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.xhr.status === 201 && evt.detail.pathInfo.requestPath === '/api/packages/upload') {
+        document.getElementById('upload-result').innerHTML = '<div class="success">Package uploaded successfully!</div>';
+        setTimeout(hideUploadModal, 2000);
+        // Refresh stats
+        htmx.trigger('#stats-content', 'load');
+    }
+});
+</script>
+{{end}}

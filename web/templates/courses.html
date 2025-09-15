@@ -1,0 +1,122 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="courses-page">
+    <div class="page-header">
+        <h2>Courses Management</h2>
+        <button onclick="showUploadModal()" class="btn btn-success">Upload New Course</button>
+    </div>
+    
+    <div class="courses-list" hx-get="/api/courses" hx-trigger="load" hx-target="#courses-content">
+        <div id="courses-content">
+            <div class="loading">Loading courses...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="hideUploadModal()">&times;</span>
+        <h3>Upload SCORM Package</h3>
+        <form hx-post="/api/packages/upload" hx-encoding="multipart/form-data" hx-target="#upload-result">
+            <div class="form-group">
+                <label for="title">Course Title:</label>
+                <input type="text" id="title" name="title" required>
+            </div>
+            <div class="form-group">
+                <label for="description">Description:</label>
+                <textarea id="description" name="description" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="package">SCORM Package (ZIP):</label>
+                <input type="file" id="package" name="package" accept=".zip" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload Package</button>
+        </form>
+        <div id="upload-result"></div>
+    </div>
+</div>
+
+<!-- Course Detail Modal -->
+<div id="courseModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="hideCourseModal()">&times;</span>
+        <div id="course-detail-content">
+            <!-- Course details will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+function showUploadModal() {
+    document.getElementById('uploadModal').style.display = 'block';
+}
+
+function hideUploadModal() {
+    document.getElementById('uploadModal').style.display = 'none';
+    document.getElementById('upload-result').innerHTML = '';
+}
+
+function showCourseDetails(courseId) {
+    document.getElementById('courseModal').style.display = 'block';
+    htmx.ajax('GET', '/api/courses/' + courseId, {
+        target: '#course-detail-content'
+    });
+}
+
+function hideCourseModal() {
+    document.getElementById('courseModal').style.display = 'none';
+    document.getElementById('course-detail-content').innerHTML = '';
+}
+
+function launchCourse(courseId) {
+    const learnerName = prompt('Enter learner name:', 'Test Learner');
+    if (learnerName) {
+        const learnerId = prompt('Enter learner ID:', 'learner_' + Date.now());
+        if (learnerId) {
+            fetch(`/api/courses/${courseId}/launch?learner_id=${encodeURIComponent(learnerId)}&learner_name=${encodeURIComponent(learnerName)}`, {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(`Course launched! Registration ID: ${data.registration_id}`);
+                htmx.trigger('#courses-content', 'load');
+            })
+            .catch(error => {
+                alert('Error launching course: ' + error.message);
+            });
+        }
+    }
+}
+
+function deleteCourse(courseId) {
+    if (confirm('Are you sure you want to delete this course?')) {
+        fetch('/api/courses/' + courseId, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                htmx.trigger('#courses-content', 'load');
+                alert('Course deleted successfully');
+            } else {
+                alert('Error deleting course');
+            }
+        })
+        .catch(error => {
+            alert('Error deleting course: ' + error.message);
+        });
+    }
+}
+
+// Handle successful upload
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.xhr.status === 201 && evt.detail.pathInfo.requestPath === '/api/packages/upload') {
+        document.getElementById('upload-result').innerHTML = '<div class="success">Package uploaded successfully!</div>';
+        setTimeout(hideUploadModal, 2000);
+        // Refresh course list
+        htmx.trigger('#courses-content', 'load');
+    }
+});
+</script>
+{{end}}

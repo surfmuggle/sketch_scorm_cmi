@@ -1,0 +1,1145 @@
+openapi: 3.0.3
+info:
+  title: SCORM CMI API
+  description: |
+    A comprehensive REST API for managing SCORM 2004 courses and CMI (Computer Managed Instruction) data.
+    
+    This API provides endpoints for:
+    - Uploading and managing SCORM packages
+    - Creating and managing learner registrations
+    - Tracking CMI data (progress, scores, interactions)
+    - Generating learning analytics reports
+    
+    The API follows SCORM 2004 4th Edition specifications and supports all major CMI data elements.
+  version: 1.0.0
+  contact:
+    name: SCORM CMI API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api
+    description: Development server
+  - url: https://your-domain.com/api
+    description: Production server
+
+paths:
+  /courses:
+    get:
+      summary: List all courses
+      description: Retrieve a list of all SCORM courses in the system
+      tags:
+        - Courses
+      responses:
+        '200':
+          description: List of courses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Course'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Create a new course
+      description: Create a new course entry (without package upload)
+      tags:
+        - Courses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseCreateRequest'
+      responses:
+        '201':
+          description: Course created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /courses/{courseId}:
+    get:
+      summary: Get course details
+      description: Retrieve detailed information about a specific course
+      tags:
+        - Courses
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the course
+      responses:
+        '200':
+          description: Course details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '404':
+          description: Course not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    delete:
+      summary: Delete a course
+      description: Remove a course and all associated data from the system
+      tags:
+        - Courses
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the course
+      responses:
+        '204':
+          description: Course deleted successfully
+        '404':
+          description: Course not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /courses/{courseId}/launch:
+    get:
+      summary: Launch a course
+      description: Create a registration and return launch information for a learner
+      tags:
+        - Courses
+        - Launch
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the course
+        - name: learner_id
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "default_learner"
+          description: Unique identifier of the learner
+        - name: learner_name
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "Default Learner"
+          description: Display name of the learner
+      responses:
+        '200':
+          description: Course launch information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LaunchResponse'
+        '404':
+          description: Course not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /packages/upload:
+    post:
+      summary: Upload SCORM package
+      description: Upload and process a SCORM package ZIP file
+      tags:
+        - Packages
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Course title
+                description:
+                  type: string
+                  description: Course description
+                package:
+                  type: string
+                  format: binary
+                  description: SCORM package ZIP file
+              required:
+                - package
+      responses:
+        '201':
+          description: Package uploaded and processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  course:
+                    $ref: '#/components/schemas/Course'
+                  message:
+                    type: string
+        '400':
+          description: Invalid package or request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /registrations:
+    get:
+      summary: List registrations
+      description: Retrieve a list of learner registrations, optionally filtered by learner
+      tags:
+        - Registrations
+      parameters:
+        - name: learner_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter registrations by learner ID
+      responses:
+        '200':
+          description: List of registrations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    registration:
+                      $ref: '#/components/schemas/Registration'
+                    course_title:
+                      type: string
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Create a new registration
+      description: Enroll a learner in a course
+      tags:
+        - Registrations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationCreateRequest'
+      responses:
+        '201':
+          description: Registration created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Course not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Registration already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /registrations/{registrationId}:
+    get:
+      summary: Get registration details
+      description: Retrieve detailed information about a specific registration
+      tags:
+        - Registrations
+      parameters:
+        - name: registrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the registration
+      responses:
+        '200':
+          description: Registration details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration'
+        '404':
+          description: Registration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    put:
+      summary: Update registration
+      description: Update registration fields such as status, score, etc.
+      tags:
+        - Registrations
+      parameters:
+        - name: registrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationUpdateRequest'
+      responses:
+        '200':
+          description: Registration updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Registration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    delete:
+      summary: Delete registration
+      description: Remove a registration from the system
+      tags:
+        - Registrations
+      parameters:
+        - name: registrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the registration
+      responses:
+        '204':
+          description: Registration deleted successfully
+        '404':
+          description: Registration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /registrations/{registrationId}/commit:
+    post:
+      summary: Commit registration state
+      description: Save the current state of the registration
+      tags:
+        - Registrations
+        - CMI
+      parameters:
+        - name: registrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the registration
+      responses:
+        '200':
+          description: Registration state committed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "committed"
+        '404':
+          description: Registration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /registrations/{registrationId}/terminate:
+    post:
+      summary: Terminate registration session
+      description: End the current learning session and mark as terminated
+      tags:
+        - Registrations
+        - CMI
+      parameters:
+        - name: registrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the registration
+      responses:
+        '200':
+          description: Registration session terminated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "terminated"
+        '404':
+          description: Registration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /registrations/{registrationId}/scorm-api:
+    get:
+      summary: Get SCORM JavaScript API
+      description: Retrieve the JavaScript API implementation for SCORM content
+      tags:
+        - Registrations
+        - SCORM API
+      parameters:
+        - name: registrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the registration
+      responses:
+        '200':
+          description: SCORM API JavaScript returned
+          content:
+            application/javascript:
+              schema:
+                type: string
+        '404':
+          description: Registration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cmi/{registrationId}:
+    get:
+      summary: Get CMI data
+      description: Retrieve CMI (Computer Managed Instruction) data for a registration
+      tags:
+        - CMI Data
+      parameters:
+        - name: registrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the registration
+        - name: element
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Specific CMI element to retrieve (e.g., "cmi.core.lesson_status")
+      responses:
+        '200':
+          description: CMI data retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CMIData'
+                  - $ref: '#/components/schemas/CMIElement'
+        '404':
+          description: Registration or CMI element not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Set CMI data
+      description: Update CMI data for a registration
+      tags:
+        - CMI Data
+      parameters:
+        - name: registrationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CMIUpdateRequest'
+      responses:
+        '200':
+          description: CMI data updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  element:
+                    type: string
+                  value:
+                    type: string
+                  status:
+                    type: string
+                    example: "success"
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Registration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reports/summary:
+    get:
+      summary: Get system summary report
+      description: Retrieve overall system statistics and metrics
+      tags:
+        - Reports
+      responses:
+        '200':
+          description: Summary report retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SummaryReport'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reports/course/{courseId}:
+    get:
+      summary: Get course report
+      description: Retrieve detailed analytics for a specific course
+      tags:
+        - Reports
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the course
+      responses:
+        '200':
+          description: Course report retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseReport'
+        '404':
+          description: Course not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reports/learner/{learnerId}:
+    get:
+      summary: Get learner report
+      description: Retrieve detailed analytics for a specific learner
+      tags:
+        - Reports
+      parameters:
+        - name: learnerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the learner
+      responses:
+        '200':
+          description: Learner report retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnerReport'
+        '404':
+          description: Learner not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reports/completion:
+    get:
+      summary: Get completion report
+      description: Retrieve completion statistics across courses
+      tags:
+        - Reports
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+          description: Maximum number of courses to include
+      responses:
+        '200':
+          description: Completion report retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompletionData'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Course:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier
+        title:
+          type: string
+          description: Course title
+        description:
+          type: string
+          description: Course description
+        version:
+          type: string
+          description: Course version
+        package_path:
+          type: string
+          description: Path to the uploaded package
+        manifest:
+          type: string
+          description: SCORM manifest XML content
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+      required:
+        - id
+        - title
+        - created_at
+        - updated_at
+
+    CourseCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Course title
+        description:
+          type: string
+          description: Course description
+      required:
+        - title
+
+    Registration:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier
+        course_id:
+          type: string
+          description: Associated course ID
+        learner_id:
+          type: string
+          description: Learner's unique identifier
+        learner_name:
+          type: string
+          description: Learner's display name
+        status:
+          type: string
+          enum: ["not_attempted", "incomplete", "completed", "failed", "passed", "browsed"]
+          description: Current lesson status
+        score:
+          type: number
+          nullable: true
+          description: Raw score
+        min_score:
+          type: number
+          nullable: true
+          description: Minimum passing score
+        max_score:
+          type: number
+          nullable: true
+          description: Maximum possible score
+        session_time:
+          type: string
+          description: Time spent in current session
+        total_time:
+          type: string
+          description: Total time spent on course
+        location:
+          type: string
+          description: Bookmark/location in course
+        suspend_data:
+          type: string
+          description: Suspended session data
+        exit:
+          type: string
+          description: Exit condition
+        entry:
+          type: string
+          description: Entry condition
+        created_at:
+          type: string
+          format: date-time
+          description: Registration creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Completion timestamp
+      required:
+        - id
+        - course_id
+        - learner_id
+        - learner_name
+        - status
+        - created_at
+        - updated_at
+
+    RegistrationCreateRequest:
+      type: object
+      properties:
+        course_id:
+          type: string
+          description: Course to enroll in
+        learner_id:
+          type: string
+          description: Learner's unique identifier
+        learner_name:
+          type: string
+          description: Learner's display name
+      required:
+        - course_id
+        - learner_id
+        - learner_name
+
+    RegistrationUpdateRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: ["not_attempted", "incomplete", "completed", "failed", "passed", "browsed"]
+          description: Lesson status
+        score:
+          type: number
+          description: Raw score
+        min_score:
+          type: number
+          description: Minimum passing score
+        max_score:
+          type: number
+          description: Maximum possible score
+        session_time:
+          type: string
+          description: Session time
+        total_time:
+          type: string
+          description: Total time
+        location:
+          type: string
+          description: Bookmark location
+        suspend_data:
+          type: string
+          description: Suspend data
+        exit:
+          type: string
+          description: Exit condition
+        entry:
+          type: string
+          description: Entry condition
+
+    LaunchResponse:
+      type: object
+      properties:
+        registration_id:
+          type: string
+          description: Registration identifier for this launch
+        launch_url:
+          type: string
+          description: URL to launch the course content
+        js_api:
+          type: string
+          description: URL to the SCORM JavaScript API
+      required:
+        - registration_id
+        - launch_url
+        - js_api
+
+    CMIData:
+      type: object
+      additionalProperties:
+        oneOf:
+          - type: string
+          - type: number
+          - type: object
+            properties:
+              value:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+      description: Collection of CMI data elements
+
+    CMIElement:
+      type: object
+      properties:
+        element:
+          type: string
+          description: CMI element name
+        value:
+          type: string
+          description: CMI element value
+        timestamp:
+          type: string
+          format: date-time
+          description: When this value was set
+      required:
+        - element
+        - value
+
+    CMIUpdateRequest:
+      type: object
+      properties:
+        element:
+          type: string
+          description: CMI element to update (e.g., "cmi.core.lesson_status")
+        value:
+          type: string
+          description: New value for the element
+      required:
+        - element
+        - value
+
+    SummaryReport:
+      type: object
+      properties:
+        total_courses:
+          type: integer
+          description: Total number of courses
+        total_registrations:
+          type: integer
+          description: Total number of registrations
+        completed_registrations:
+          type: integer
+          description: Number of completed registrations
+        completion_rate:
+          type: number
+          description: Overall completion rate percentage
+        avg_score:
+          type: number
+          nullable: true
+          description: Average score across all registrations
+        active_registrations:
+          type: integer
+          description: Number of active (in-progress) registrations
+      required:
+        - total_courses
+        - total_registrations
+        - completed_registrations
+        - completion_rate
+        - active_registrations
+
+    CourseReport:
+      type: object
+      properties:
+        course:
+          $ref: '#/components/schemas/Course'
+        total_registrations:
+          type: integer
+        completed_registrations:
+          type: integer
+        in_progress_registrations:
+          type: integer
+        not_started_registrations:
+          type: integer
+        failed_registrations:
+          type: integer
+        completion_rate:
+          type: number
+        avg_score:
+          type: number
+          nullable: true
+        learners:
+          type: array
+          items:
+            type: object
+            properties:
+              learner_id:
+                type: string
+              learner_name:
+                type: string
+              status:
+                type: string
+              score:
+                type: number
+                nullable: true
+              total_time:
+                type: string
+              updated_at:
+                type: string
+                format: date-time
+              completed_at:
+                type: string
+                format: date-time
+                nullable: true
+      required:
+        - course
+        - total_registrations
+        - completed_registrations
+        - completion_rate
+        - learners
+
+    LearnerReport:
+      type: object
+      properties:
+        learner_id:
+          type: string
+        learner_name:
+          type: string
+        registrations:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              course_id:
+                type: string
+              course_title:
+                type: string
+              status:
+                type: string
+              score:
+                type: number
+                nullable: true
+              total_time:
+                type: string
+              created_at:
+                type: string
+                format: date-time
+              updated_at:
+                type: string
+                format: date-time
+              completed_at:
+                type: string
+                format: date-time
+                nullable: true
+        total_courses:
+          type: integer
+        completed_courses:
+          type: integer
+        in_progress_courses:
+          type: integer
+        avg_score:
+          type: number
+          nullable: true
+      required:
+        - learner_id
+        - learner_name
+        - registrations
+        - total_courses
+        - completed_courses
+        - in_progress_courses
+
+    CompletionData:
+      type: object
+      properties:
+        course_id:
+          type: string
+        course_title:
+          type: string
+        total_registrations:
+          type: integer
+        completed_registrations:
+          type: integer
+        completion_rate:
+          type: number
+          description: Completion rate percentage
+      required:
+        - course_id
+        - course_title
+        - total_registrations
+        - completed_registrations
+        - completion_rate
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required:
+        - error
+
+tags:
+  - name: Courses
+    description: Course management operations
+  - name: Packages
+    description: SCORM package upload and processing
+  - name: Registrations
+    description: Learner registration management
+  - name: CMI Data
+    description: Computer Managed Instruction data operations
+  - name: Launch
+    description: Course launching operations
+  - name: SCORM API
+    description: SCORM JavaScript API endpoints
+  - name: Reports
+    description: Analytics and reporting endpoints

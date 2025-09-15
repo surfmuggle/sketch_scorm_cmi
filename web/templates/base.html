@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - SCORM CMI App</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1><a href="/">SCORM CMI App</a></h1>
+            <ul class="nav-menu">
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/courses">Courses</a></li>
+                <li><a href="/registrations">Registrations</a></li>
+            </ul>
+        </div>
+    </nav>
+    
+    <main class="container">
+        {{block "content" .}}{{end}}
+    </main>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

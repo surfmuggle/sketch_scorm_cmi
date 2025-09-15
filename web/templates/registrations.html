@@ -1,0 +1,185 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="registrations-page">
+    <div class="page-header">
+        <h2>Registrations Management</h2>
+        <div class="filter-controls">
+            <input type="text" id="learnerFilter" placeholder="Filter by learner ID" onkeyup="filterRegistrations()">
+            <button onclick="showCreateRegistrationModal()" class="btn btn-primary">New Registration</button>
+        </div>
+    </div>
+    
+    <div class="registrations-list" hx-get="/api/registrations" hx-trigger="load" hx-target="#registrations-content">
+        <div id="registrations-content">
+            <div class="loading">Loading registrations...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Registration Modal -->
+<div id="createRegistrationModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="hideCreateRegistrationModal()">&times;</span>
+        <h3>Create New Registration</h3>
+        <form hx-post="/api/registrations" hx-target="#create-result">
+            <div class="form-group">
+                <label for="course_id">Course:</label>
+                <select id="course_id" name="course_id" required>
+                    <option value="">Select a course...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="learner_id">Learner ID:</label>
+                <input type="text" id="learner_id" name="learner_id" required>
+            </div>
+            <div class="form-group">
+                <label for="learner_name">Learner Name:</label>
+                <input type="text" id="learner_name" name="learner_name" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Registration</button>
+        </form>
+        <div id="create-result"></div>
+    </div>
+</div>
+
+<!-- Registration Detail Modal -->
+<div id="registrationModal" class="modal" style="display: none;">
+    <div class="modal-content large">
+        <span class="close" onclick="hideRegistrationModal()">&times;</span>
+        <div id="registration-detail-content">
+            <!-- Registration details will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+function showCreateRegistrationModal() {
+    // Load courses for selection
+    fetch('/api/courses')
+        .then(response => response.json())
+        .then(courses => {
+            const select = document.getElementById('course_id');
+            select.innerHTML = '<option value="">Select a course...</option>';
+            courses.forEach(course => {
+                const option = document.createElement('option');
+                option.value = course.id;
+                option.textContent = course.title;
+                select.appendChild(option);
+            });
+        });
+    
+    document.getElementById('createRegistrationModal').style.display = 'block';
+}
+
+function hideCreateRegistrationModal() {
+    document.getElementById('createRegistrationModal').style.display = 'none';
+    document.getElementById('create-result').innerHTML = '';
+}
+
+function showRegistrationDetails(registrationId) {
+    document.getElementById('registrationModal').style.display = 'block';
+    
+    // Load registration details and CMI data
+    Promise.all([
+        fetch('/api/registrations/' + registrationId).then(r => r.json()),
+        fetch('/api/cmi/' + registrationId).then(r => r.json())
+    ])
+    .then(([registration, cmiData]) => {
+        const content = `
+            <h3>Registration Details</h3>
+            <div class="registration-info">
+                <div class="info-section">
+                    <h4>Basic Information</h4>
+                    <p><strong>Registration ID:</strong> ${registration.id}</p>
+                    <p><strong>Learner:</strong> ${registration.learner_name} (${registration.learner_id})</p>
+                    <p><strong>Status:</strong> <span class="status-${registration.status}">${registration.status}</span></p>
+                    <p><strong>Score:</strong> ${registration.score || 'Not set'}</p>
+                    <p><strong>Total Time:</strong> ${registration.total_time || '00:00:00'}</p>
+                    <p><strong>Location:</strong> ${registration.location || 'Not set'}</p>
+                </div>
+                
+                <div class="info-section">
+                    <h4>CMI Data</h4>
+                    <div class="cmi-data">
+                        ${Object.keys(cmiData).map(key => 
+                            `<div class="cmi-item">
+                                <strong>${key}:</strong> 
+                                ${typeof cmiData[key] === 'object' ? cmiData[key].value : cmiData[key]}
+                            </div>`
+                        ).join('')}
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button onclick="updateRegistrationStatus('${registration.id}')" class="btn btn-primary">Update Status</button>
+                    <button onclick="viewCMIData('${registration.id}')" class="btn btn-secondary">View Full CMI</button>
+                    <button onclick="deleteRegistration('${registration.id}')" class="btn btn-danger">Delete</button>
+                </div>
+            </div>
+        `;
+        document.getElementById('registration-detail-content').innerHTML = content;
+    })
+    .catch(error => {
+        document.getElementById('registration-detail-content').innerHTML = '<div class="error">Error loading registration details</div>';
+    });
+}
+
+function hideRegistrationModal() {
+    document.getElementById('registrationModal').style.display = 'none';
+    document.getElementById('registration-detail-content').innerHTML = '';
+}
+
+function updateRegistrationStatus(registrationId) {
+    const newStatus = prompt('Enter new status (not_attempted, incomplete, completed, failed, passed, browsed):');
+    if (newStatus && ['not_attempted', 'incomplete', 'completed', 'failed', 'passed', 'browsed'].includes(newStatus)) {
+        fetch('/api/registrations/' + registrationId, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status: newStatus})
+        })
+        .then(response => {
+            if (response.ok) {
+                hideRegistrationModal();
+                htmx.trigger('#registrations-content', 'load');
+                alert('Status updated successfully');
+            } else {
+                alert('Error updating status');
+            }
+        });
+    }
+}
+
+function deleteRegistration(registrationId) {
+    if (confirm('Are you sure you want to delete this registration?')) {
+        fetch('/api/registrations/' + registrationId, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                hideRegistrationModal();
+                htmx.trigger('#registrations-content', 'load');
+                alert('Registration deleted successfully');
+            } else {
+                alert('Error deleting registration');
+            }
+        });
+    }
+}
+
+function filterRegistrations() {
+    const filterValue = document.getElementById('learnerFilter').value;
+    const url = filterValue ? '/api/registrations?learner_id=' + encodeURIComponent(filterValue) : '/api/registrations';
+    htmx.ajax('GET', url, {target: '#registrations-content'});
+}
+
+// Handle successful registration creation
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.xhr.status === 201 && evt.detail.pathInfo.requestPath === '/api/registrations') {
+        document.getElementById('create-result').innerHTML = '<div class="success">Registration created successfully!</div>';
+        setTimeout(hideCreateRegistrationModal, 2000);
+        htmx.trigger('#registrations-content', 'load');
+    }
+});
+</script>
+{{end}}

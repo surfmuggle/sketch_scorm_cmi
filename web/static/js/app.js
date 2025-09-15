@@ -91,6 +91,15 @@ document.body.addEventListener('htmx:beforeSwap', function(evt) {
         }
     }
     
+    if (evt.detail.pathInfo.requestPath === '/api/reports/summary' && target.id === 'dashboard-stats') {
+        try {
+            const summary = JSON.parse(response);
+            evt.detail.serverResponse = transformSummaryToDashboard(summary);
+        } catch (e) {
+            console.error('Error parsing dashboard summary response:', e);
+        }
+    }
+    
     if (evt.detail.pathInfo.requestPath.startsWith('/api/reports/course/') && target.id === 'course-analytics') {
         try {
             const report = JSON.parse(response);
@@ -450,4 +459,76 @@ function transformCourseAnalytics(report) {
 // Helper function to create slugs (matching server-side implementation)
 function createSlug(title) {
     return title.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+// Transform summary for dashboard sidebar
+function transformSummaryToDashboard(summary) {
+    return `
+        <div class="content">
+            <div class="level is-mobile">
+                <div class="level-left">
+                    <div class="level-item">
+                        <div>
+                            <p class="title is-4 has-text-primary">${summary.total_courses}</p>
+                            <p class="subtitle is-6">Total Courses</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="level-right">
+                    <div class="level-item">
+                        <i class="fas fa-book fa-2x has-text-primary"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="level is-mobile">
+                <div class="level-left">
+                    <div class="level-item">
+                        <div>
+                            <p class="title is-4 has-text-info">${summary.total_registrations}</p>
+                            <p class="subtitle is-6">Total Registrations</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="level-right">
+                    <div class="level-item">
+                        <i class="fas fa-users fa-2x has-text-info"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="level is-mobile">
+                <div class="level-left">
+                    <div class="level-item">
+                        <div>
+                            <p class="title is-4 has-text-success">${summary.completion_rate ? summary.completion_rate.toFixed(1) + '%' : '0%'}</p>
+                            <p class="subtitle is-6">Completion Rate</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="level-right">
+                    <div class="level-item">
+                        <i class="fas fa-chart-line fa-2x has-text-success"></i>
+                    </div>
+                </div>
+            </div>
+            
+            ${summary.avg_score ? `
+            <div class="level is-mobile">
+                <div class="level-left">
+                    <div class="level-item">
+                        <div>
+                            <p class="title is-4 has-text-warning">${summary.avg_score.toFixed(1)}</p>
+                            <p class="subtitle is-6">Average Score</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="level-right">
+                    <div class="level-item">
+                        <i class="fas fa-star fa-2x has-text-warning"></i>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+    `;
 }

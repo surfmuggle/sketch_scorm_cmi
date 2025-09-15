@@ -1,84 +1,264 @@
 {{template "base.html" .}}
 
 {{define "content"}}
-<div class="dashboard">
-    <h2>Dashboard</h2>
-    
-    <div class="stats-grid" hx-get="/api/reports/summary" hx-trigger="load" hx-target="#stats-content">
-        <div id="stats-content">
-            <div class="stat-card loading">
-                <h3>Loading...</h3>
-                <p>Fetching statistics...</p>
+<div class="hero is-info">
+    <div class="hero-body">
+        <div class="container has-text-centered">
+            <h1 class="title is-2">
+                <i class="fas fa-graduation-cap mr-2"></i>
+                Welcome to SCORM CMI App
+            </h1>
+            <p class="subtitle is-4">
+                Comprehensive SCORM 2004 learning management system
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="container">
+        <div class="columns">
+            <div class="column is-8">
+                <div class="box">
+                    <h2 class="title is-4">
+                        <i class="fas fa-book mr-2"></i>
+                        Recent Courses
+                    </h2>
+                    
+                    {{if .Courses}}
+                    <div class="table-container">
+                        <table class="table is-fullwidth is-striped is-hoverable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Title</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{range .Courses}}
+                                <tr>
+                                    <td>
+                                        <code class="is-size-7">{{.ID}}</code>
+                                    </td>
+                                    <td>
+                                        <strong>{{.Title}}</strong>
+                                        <br>
+                                        <small class="has-text-grey">Version {{.Version}}</small>
+                                    </td>
+                                    <td>
+                                        {{if .Description}}
+                                            {{if gt (len .Description) 80}}
+                                                {{slice .Description 0 80}}...
+                                            {{else}}
+                                                {{.Description}}
+                                            {{end}}
+                                        {{else}}
+                                            <em class="has-text-grey">No description</em>
+                                        {{end}}
+                                    </td>
+                                    <td>
+                                        <div class="buttons are-small">
+                                            <a href="/courses/{{.ID}}#{{.Slug}}" class="button is-info is-small">
+                                                <i class="fas fa-eye mr-1"></i>
+                                                View
+                                            </a>
+                                            <button onclick="launchCourse('{{.ID}}')" class="button is-success is-small">
+                                                <i class="fas fa-play mr-1"></i>
+                                                Launch
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                    {{else}}
+                    <div class="notification is-info">
+                        <div class="has-text-centered">
+                            <i class="fas fa-info-circle fa-2x mb-2"></i>
+                            <p><strong>No courses available</strong></p>
+                            <p>Get started by creating your first course or uploading a SCORM package.</p>
+                            <div class="buttons is-centered mt-3">
+                                <a href="/courses/create" class="button is-primary">
+                                    <i class="fas fa-plus mr-1"></i>
+                                    Create Course
+                                </a>
+                                <a href="/courses" class="button is-link">
+                                    <i class="fas fa-list mr-1"></i>
+                                    View All Courses
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {{end}}
+                    
+                    <div class="has-text-centered mt-4">
+                        <a href="/courses" class="button is-primary">
+                            <i class="fas fa-arrow-right mr-1"></i>
+                            View All Courses
+                        </a>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="quick-actions">
-        <h3>Quick Actions</h3>
-        <div class="action-buttons">
-            <button hx-get="/courses" hx-target="#main-content" class="btn btn-primary">
-                Manage Courses
-            </button>
-            <button hx-get="/registrations" hx-target="#main-content" class="btn btn-secondary">
-                View Registrations
-            </button>
-            <button onclick="showUploadModal()" class="btn btn-success">
-                Upload SCORM Package
-            </button>
-        </div>
-    </div>
-    
-    <div class="recent-activity">
-        <h3>Recent Activity</h3>
-        <div hx-get="/api/registrations?limit=5" hx-trigger="load" hx-target="#recent-registrations">
-            <div id="recent-registrations">
-                <div class="loading">Loading recent activity...</div>
+            
+            <div class="column is-4">
+                <!-- Statistics Card -->
+                <div class="box">
+                    <h3 class="title is-5">
+                        <i class="fas fa-chart-bar mr-2"></i>
+                        System Overview
+                    </h3>
+                    <div hx-get="/api/reports/summary" hx-trigger="load" hx-target="#dashboard-stats">
+                        <div id="dashboard-stats">
+                            <div class="has-text-centered p-4">
+                                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                                <p class="mt-2">Loading statistics...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions Card -->
+                <div class="box">
+                    <h3 class="title is-5">
+                        <i class="fas fa-bolt mr-2"></i>
+                        Quick Actions
+                    </h3>
+                    <div class="buttons is-fullwidth">
+                        <a href="/courses/create" class="button is-primary is-fullwidth">
+                            <i class="fas fa-plus mr-1"></i>
+                            Create Course
+                        </a>
+                        <button onclick="showUploadModal()" class="button is-link is-fullwidth">
+                            <i class="fas fa-upload mr-1"></i>
+                            Upload SCORM
+                        </button>
+                        <a href="/registrations" class="button is-info is-fullwidth">
+                            <i class="fas fa-users mr-1"></i>
+                            View Registrations
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Upload Modal -->
-<div id="uploadModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <span class="close" onclick="hideUploadModal()">&times;</span>
-        <h3>Upload SCORM Package</h3>
-        <form hx-post="/api/packages/upload" hx-encoding="multipart/form-data" hx-target="#upload-result">
-            <div class="form-group">
-                <label for="title">Course Title:</label>
-                <input type="text" id="title" name="title" required>
-            </div>
-            <div class="form-group">
-                <label for="description">Description:</label>
-                <textarea id="description" name="description" rows="3"></textarea>
-            </div>
-            <div class="form-group">
-                <label for="package">SCORM Package (ZIP):</label>
-                <input type="file" id="package" name="package" accept=".zip" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Upload Package</button>
-        </form>
-        <div id="upload-result"></div>
+<!-- SCORM Upload Modal -->
+<div id="uploadModal" class="modal">
+    <div class="modal-background" onclick="hideUploadModal()"></div>
+    <div class="modal-card">
+        <header class="modal-card-head">
+            <p class="modal-card-title">
+                <i class="fas fa-upload mr-2"></i>
+                Upload SCORM Package
+            </p>
+            <button class="delete" aria-label="close" onclick="hideUploadModal()"></button>
+        </header>
+        <section class="modal-card-body">
+            <form hx-post="/api/packages/upload" hx-encoding="multipart/form-data" hx-target="#upload-result">
+                <div class="field">
+                    <label class="label">Course Title</label>
+                    <div class="control">
+                        <input class="input" type="text" name="title" required>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label class="label">Description</label>
+                    <div class="control">
+                        <textarea class="textarea" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label class="label">SCORM Package (ZIP)</label>
+                    <div class="control">
+                        <div class="file has-name is-fullwidth">
+                            <label class="file-label">
+                                <input class="file-input" type="file" name="package" accept=".zip" required>
+                                <span class="file-cta">
+                                    <span class="file-icon">
+                                        <i class="fas fa-upload"></i>
+                                    </span>
+                                    <span class="file-label">Choose a file...</span>
+                                </span>
+                                <span class="file-name">No file selected</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <div class="control">
+                        <button type="submit" class="button is-primary">
+                            <i class="fas fa-upload mr-1"></i>
+                            Upload Package
+                        </button>
+                    </div>
+                </div>
+            </form>
+            
+            <div id="upload-result"></div>
+        </section>
     </div>
 </div>
 
 <script>
 function showUploadModal() {
-    document.getElementById('uploadModal').style.display = 'block';
+    document.getElementById('uploadModal').classList.add('is-active');
 }
 
 function hideUploadModal() {
-    document.getElementById('uploadModal').style.display = 'none';
+    const modal = document.getElementById('uploadModal');
+    modal.classList.remove('is-active');
     document.getElementById('upload-result').innerHTML = '';
 }
+
+function launchCourse(courseId) {
+    const learnerName = prompt('Enter learner name:', 'Test Learner');
+    if (learnerName) {
+        const learnerId = prompt('Enter learner ID:', 'learner_' + Date.now());
+        if (learnerId) {
+            fetch(`/api/courses/${courseId}/launch?learner_id=${encodeURIComponent(learnerId)}&learner_name=${encodeURIComponent(learnerName)}`, {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(`Course launched! Registration ID: ${data.registration_id}`);
+                // Refresh statistics
+                htmx.trigger('#dashboard-stats', 'load');
+            })
+            .catch(error => {
+                alert('Error launching course: ' + error.message);
+            });
+        }
+    }
+}
+
+// Handle file input display
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('file-input')) {
+        const fileName = e.target.files[0] ? e.target.files[0].name : 'No file selected';
+        const fileNameElement = e.target.parentNode.parentNode.querySelector('.file-name');
+        if (fileNameElement) {
+            fileNameElement.textContent = fileName;
+        }
+    }
+});
 
 // Handle successful upload
 document.body.addEventListener('htmx:afterRequest', function(evt) {
     if (evt.detail.xhr.status === 201 && evt.detail.pathInfo.requestPath === '/api/packages/upload') {
-        document.getElementById('upload-result').innerHTML = '<div class="success">Package uploaded successfully!</div>';
-        setTimeout(hideUploadModal, 2000);
-        // Refresh stats
-        htmx.trigger('#stats-content', 'load');
+        document.getElementById('upload-result').innerHTML = '<div class="notification is-success"><i class="fas fa-check-circle mr-2"></i>Package uploaded successfully!</div>';
+        setTimeout(() => {
+            hideUploadModal();
+            // Refresh the page to show new course
+            window.location.reload();
+        }, 2000);
     }
 });
 </script>

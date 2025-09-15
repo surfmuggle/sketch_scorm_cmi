@@ -69,9 +69,21 @@ func (h *Handlers) sendError(w http.ResponseWriter, message string, code int) {
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
-// HandleIndex serves the main page
+// HandleIndex serves the main page with recent courses
 func (h *Handlers) HandleIndex(w http.ResponseWriter, r *http.Request) {
-	if err := h.templates.ExecuteTemplate(w, "index.html", nil); err != nil {
+	// Get 3 most recent courses
+	courses, err := h.getRecentCourses(3)
+	if err != nil {
+		log.Printf("Error fetching recent courses: %v", err)
+		// Continue with empty courses list
+	}
+	
+	data := map[string]interface{}{
+		"Title":   "Dashboard",
+		"Courses": courses,
+	}
+	
+	if err := h.templates.ExecuteTemplate(w, "index.html", data); err != nil {
 		log.Printf("Error rendering template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
@@ -545,4 +557,55 @@ func (h *Handlers) updateCourseFromForm(w http.ResponseWriter, r *http.Request, 
 	slug := createSlug(title)
 	w.Header().Set("HX-Redirect", fmt.Sprintf("/courses/%s#%s", courseID, slug))
 	w.WriteHeader(http.StatusOK)
+}
+
+// getRecentCourses retrieves the most recent courses with slug generation
+func (h *Handlers) getRecentCourses(limit int) ([]map[string]interface{}, error) {
+	query := `
+		SELECT id, title, description, version, created_at, updated_at 
+		FROM courses 
+		ORDER BY created_at DESC 
+		LIMIT ?
+	`
+	
+	rows, err := h.db.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var courses []map[string]interface{}
+	for rows.Next() {
+		var course models.Course
+		var version sql.NullString
+		
+		err := rows.Scan(&course.ID, &course.Title, &course.Description, 
+			&version, &course.CreatedAt, &course.UpdatedAt)
+		if err != nil {
+			log.Printf("Error scanning course: %v", err)
+			continue
+		}
+		
+		// Handle nullable version field
+		if version.Valid {
+			course.Version = version.String
+		} else {
+			course.Version = "1.0"
+		}
+		
+		// Create course data with slug
+		courseData := map[string]interface{}{
+			"ID":          course.ID,
+			"Title":       course.Title,
+			"Description": course.Description,
+			"Version":     course.Version,
+			"CreatedAt":   course.CreatedAt,
+			"UpdatedAt":   course.UpdatedAt,
+			"Slug":        createSlug(course.Title),
+		}
+		
+		courses = append(courses, courseData)
+	}
+	
+	return courses, nil
 }

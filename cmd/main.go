@@ -27,7 +27,9 @@ func main() {
 
 	// Web UI routes
 	mux.HandleFunc("/", h.HandleIndex)
-	mux.HandleFunc("/courses", h.HandleCoursesPage)
+	mux.HandleFunc("/courses", h.HandleCoursesListPage)
+	mux.HandleFunc("/courses/create", h.HandleCourseCreatePage)
+	mux.HandleFunc("/courses/", h.HandleCourseDetailPage)
 	mux.HandleFunc("/registrations", h.HandleRegistrationsPage)
 
 	// API routes

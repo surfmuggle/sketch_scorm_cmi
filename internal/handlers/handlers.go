@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"regexp"
 	"scorm-cmi-app/internal/models"
 	"strings"
 	"time"
@@ -32,6 +33,29 @@ func generateID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
+// createSlug creates a URL-friendly slug from title
+func createSlug(title string) string {
+	// Convert to lowercase and replace spaces/special chars with hyphens
+	reg := regexp.MustCompile(`[^a-zA-Z0-9]+`)
+	slug := reg.ReplaceAllString(strings.ToLower(title), "-")
+	// Remove leading/trailing hyphens
+	return strings.Trim(slug, "-")
+}
+
+// extractCourseIDFromPath extracts course ID from URL path like /courses/123#slug
+func extractCourseIDFromPath(path string) string {
+	parts := strings.Split(path, "/")
+	if len(parts) >= 3 {
+		// Handle both /courses/123 and /courses/123#slug
+		courseIDPart := parts[2]
+		if hashIndex := strings.Index(courseIDPart, "#"); hashIndex > 0 {
+			return courseIDPart[:hashIndex]
+		}
+		return courseIDPart
+	}
+	return ""
+}
+
 // sendJSON sends a JSON response
 func (h *Handlers) sendJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -53,11 +77,69 @@ func (h *Handlers) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandleCoursesPage serves the courses management page
-func (h *Handlers) HandleCoursesPage(w http.ResponseWriter, r *http.Request) {
-	if err := h.templates.ExecuteTemplate(w, "courses.html", nil); err != nil {
+// HandleCoursesListPage serves the courses list page
+func (h *Handlers) HandleCoursesListPage(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/courses" {
+		http.NotFound(w, r)
+		return
+	}
+
+	data := map[string]interface{}{
+		"Title":    "Courses",
+		"PageType": "courses-list",
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "courses-list.html", data); err != nil {
 		log.Printf("Error rendering template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// HandleCourseCreatePage serves the course creation page
+func (h *Handlers) HandleCourseCreatePage(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		data := map[string]interface{}{
+			"Title":    "Create Course",
+			"PageType": "course-create",
+		}
+
+		if err := h.templates.ExecuteTemplate(w, "course-create.html", data); err != nil {
+			log.Printf("Error rendering template: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+
+	case "POST":
+		h.createCourseFromForm(w, r)
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// HandleCourseDetailPage serves individual course pages
+func (h *Handlers) HandleCourseDetailPage(w http.ResponseWriter, r *http.Request) {
+	courseID := extractCourseIDFromPath(r.URL.Path)
+	if courseID == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Handle different HTTP methods
+	switch r.Method {
+	case "GET":
+		h.showCourseDetail(w, r, courseID)
+	case "POST":
+		// Check if this is an update (PUT-like operation via POST)
+		if r.FormValue("_method") == "PUT" {
+			h.updateCourseFromForm(w, r, courseID)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	case "DELETE":
+		h.deleteCourse(w, r, courseID)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -297,4 +379,160 @@ func (h *Handlers) deleteCourse(w http.ResponseWriter, r *http.Request, courseID
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// createCourseFromForm handles course creation from web form
+func (h *Handlers) createCourseFromForm(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	title := strings.TrimSpace(r.FormValue("title"))
+	description := strings.TrimSpace(r.FormValue("description"))
+	version := strings.TrimSpace(r.FormValue("version"))
+
+	if title == "" {
+		w.Header().Set("HX-Retarget", "#form-errors")
+		w.Header().Set("HX-Reswap", "innerHTML")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`<div class="notification is-danger">Title is required</div>`))
+		return
+	}
+
+	if version == "" {
+		version = "1.0"
+	}
+
+	course := models.Course{
+		ID:          generateID(),
+		Title:       title,
+		Description: description,
+		Version:     version,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	query := `
+		INSERT INTO courses (id, title, description, version, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+
+	_, err := h.db.Exec(query, course.ID, course.Title, course.Description,
+		course.Version, course.CreatedAt, course.UpdatedAt)
+	if err != nil {
+		log.Printf("Error creating course: %v", err)
+		w.Header().Set("HX-Retarget", "#form-errors")
+		w.Header().Set("HX-Reswap", "innerHTML")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`<div class="notification is-danger">Failed to create course</div>`))
+		return
+	}
+
+	// Redirect to the new course detail page
+	slug := createSlug(course.Title)
+	w.Header().Set("HX-Redirect", fmt.Sprintf("/courses/%s#%s", course.ID, slug))
+	w.WriteHeader(http.StatusCreated)
+}
+
+// showCourseDetail displays a course detail page
+func (h *Handlers) showCourseDetail(w http.ResponseWriter, r *http.Request, courseID string) {
+	query := `
+		SELECT id, title, description, version, package_path, manifest, created_at, updated_at 
+		FROM courses WHERE id = ?
+	`
+
+	var course models.Course
+	var packagePath, manifest, version sql.NullString
+	err := h.db.QueryRow(query, courseID).Scan(&course.ID, &course.Title, &course.Description,
+		&version, &packagePath, &manifest, &course.CreatedAt, &course.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.NotFound(w, r)
+		} else {
+			log.Printf("Error querying course: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Handle nullable fields
+	if version.Valid {
+		course.Version = version.String
+	}
+	if packagePath.Valid {
+		course.PackagePath = &packagePath.String
+	}
+	if manifest.Valid {
+		course.Manifest = &manifest.String
+	}
+
+	// Get registration count for this course
+	var registrationCount int
+	h.db.QueryRow("SELECT COUNT(*) FROM registrations WHERE course_id = ?", courseID).Scan(&registrationCount)
+
+	data := map[string]interface{}{
+		"Title":             fmt.Sprintf("%s - Course Details", course.Title),
+		"PageType":          "course-detail",
+		"Course":            course,
+		"Slug":              createSlug(course.Title),
+		"RegistrationCount": registrationCount,
+		"IsEditing":         r.URL.Query().Get("edit") == "true",
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "course-detail.html", data); err != nil {
+		log.Printf("Error rendering template: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// updateCourseFromForm handles course updates from web form
+func (h *Handlers) updateCourseFromForm(w http.ResponseWriter, r *http.Request, courseID string) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	title := strings.TrimSpace(r.FormValue("title"))
+	description := strings.TrimSpace(r.FormValue("description"))
+	version := strings.TrimSpace(r.FormValue("version"))
+
+	if title == "" {
+		w.Header().Set("HX-Retarget", "#form-errors")
+		w.Header().Set("HX-Reswap", "innerHTML")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`<div class="notification is-danger">Title is required</div>`))
+		return
+	}
+
+	if version == "" {
+		version = "1.0"
+	}
+
+	query := `
+		UPDATE courses 
+		SET title = ?, description = ?, version = ?, updated_at = ?
+		WHERE id = ?
+	`
+
+	result, err := h.db.Exec(query, title, description, version, time.Now(), courseID)
+	if err != nil {
+		log.Printf("Error updating course: %v", err)
+		w.Header().Set("HX-Retarget", "#form-errors")
+		w.Header().Set("HX-Reswap", "innerHTML")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`<div class="notification is-danger">Failed to update course</div>`))
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Redirect to the updated course detail page
+	slug := createSlug(title)
+	w.Header().Set("HX-Redirect", fmt.Sprintf("/courses/%s#%s", courseID, slug))
+	w.WriteHeader(http.StatusOK)
 }

@@ -79,45 +79,115 @@ document.body.addEventListener('htmx:beforeSwap', function(evt) {
             console.error('Error parsing summary response:', e);
         }
     }
+    
+    if (evt.detail.pathInfo.requestPath === '/api/reports/summary' && target.id === 'course-stats') {
+        try {
+            const summary = JSON.parse(response);
+            evt.detail.serverResponse = transformSummaryToCourseStats(summary);
+        } catch (e) {
+            console.error('Error parsing summary response:', e);
+        }
+    }
+    
+    if (evt.detail.pathInfo.requestPath.startsWith('/api/reports/course/') && target.id === 'course-analytics') {
+        try {
+            const report = JSON.parse(response);
+            evt.detail.serverResponse = transformCourseAnalytics(report);
+        } catch (e) {
+            console.error('Error parsing course analytics response:', e);
+        }
+    }
 });
 
 // Transform functions
 function transformCoursesToHTML(courses) {
     if (!courses.length) {
-        return '<div class="text-center p-2">No courses found. Upload a SCORM package to get started.</div>';
+        return `
+            <div class="notification is-info">
+                <div class="has-text-centered">
+                    <i class="fas fa-info-circle fa-2x mb-2"></i>
+                    <p><strong>No courses found</strong></p>
+                    <p>Get started by creating a course or uploading a SCORM package.</p>
+                    <div class="buttons is-centered mt-3">
+                        <a href="/courses/create" class="button is-primary">
+                            <i class="fas fa-plus mr-1"></i>
+                            Create Course
+                        </a>
+                        <button onclick="showUploadModal()" class="button is-link">
+                            <i class="fas fa-upload mr-1"></i>
+                            Upload SCORM
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     }
     
-    let html = `
-        <table class="content-table">
-            <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Description</th>
-                    <th>Version</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
+    let html = '<div class="columns is-multiline">';
     
     courses.forEach(course => {
+        const slug = createSlug(course.title);
+        const hasPackage = course.package_path ? true : false;
+        
         html += `
-            <tr>
-                <td><strong>${course.title}</strong></td>
-                <td>${course.description || 'No description'}</td>
-                <td>${course.version || 'N/A'}</td>
-                <td>${SCORMApp.formatDate(course.created_at)}</td>
-                <td>
-                    <button onclick="showCourseDetails('${course.id}')" class="btn btn-primary btn-sm">View</button>
-                    <button onclick="launchCourse('${course.id}')" class="btn btn-success btn-sm">Launch</button>
-                    <button onclick="deleteCourse('${course.id}')" class="btn btn-danger btn-sm">Delete</button>
-                </td>
-            </tr>
+            <div class="column is-6">
+                <div class="card">
+                    <div class="card-content">
+                        <div class="media">
+                            <div class="media-left">
+                                <figure class="image is-48x48">
+                                    <i class="fas fa-book fa-2x has-text-primary"></i>
+                                </figure>
+                            </div>
+                            <div class="media-content">
+                                <p class="title is-5">
+                                    <a href="/courses/${course.id}#${slug}" class="has-text-dark">
+                                        ${course.title}
+                                    </a>
+                                </p>
+                                <p class="subtitle is-7">
+                                    Version ${course.version || '1.0'} • 
+                                    ${hasPackage ? 
+                                        '<span class="has-text-success"><i class="fas fa-check-circle"></i> SCORM Package</span>' : 
+                                        '<span class="has-text-warning"><i class="fas fa-exclamation-circle"></i> No Package</span>'
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                        
+                        ${course.description ? `
+                        <div class="content">
+                            <p>${course.description.length > 100 ? course.description.substring(0, 100) + '...' : course.description}</p>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="content">
+                            <time class="has-text-grey is-size-7">
+                                <i class="fas fa-calendar-alt mr-1"></i>
+                                Created ${SCORMApp.formatDate(course.created_at)}
+                            </time>
+                        </div>
+                    </div>
+                    <footer class="card-footer">
+                        <a href="/courses/${course.id}#${slug}" class="card-footer-item has-text-info">
+                            <i class="fas fa-eye mr-1"></i>
+                            View
+                        </a>
+                        <a href="/courses/${course.id}#${slug}?edit=true" class="card-footer-item has-text-warning">
+                            <i class="fas fa-edit mr-1"></i>
+                            Edit
+                        </a>
+                        <button onclick="launchCourse('${course.id}')" class="card-footer-item has-text-success" style="border: none; background: none;">
+                            <i class="fas fa-play mr-1"></i>
+                            Launch
+                        </button>
+                    </footer>
+                </div>
+            </div>
         `;
     });
     
-    html += '</tbody></table>';
+    html += '</div>';
     return html;
 }
 
@@ -251,3 +321,131 @@ style.textContent = additionalCSS;
 document.head.appendChild(style);
 
 console.log('SCORM CMI App JavaScript loaded');
+
+// Transform course statistics for dashboard
+function transformSummaryToCourseStats(summary) {
+    return `
+        <div class="columns">
+            <div class="column">
+                <div class="box has-text-centered">
+                    <p class="title is-4 has-text-primary">${summary.total_courses}</p>
+                    <p class="subtitle is-6">Total Courses</p>
+                </div>
+            </div>
+            <div class="column">
+                <div class="box has-text-centered">
+                    <p class="title is-4 has-text-info">${summary.total_registrations}</p>
+                    <p class="subtitle is-6">Registrations</p>
+                </div>
+            </div>
+            <div class="column">
+                <div class="box has-text-centered">
+                    <p class="title is-4 has-text-success">${summary.completed_registrations}</p>
+                    <p class="subtitle is-6">Completed</p>
+                </div>
+            </div>
+            <div class="column">
+                <div class="box has-text-centered">
+                    <p class="title is-4 has-text-warning">${summary.completion_rate ? summary.completion_rate.toFixed(1) + '%' : '0%'}</p>
+                    <p class="subtitle is-6">Completion Rate</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Transform course analytics for course detail page
+function transformCourseAnalytics(report) {
+    let learnersTable = '';
+    if (report.learners && report.learners.length > 0) {
+        learnersTable = `
+            <div class="table-container">
+                <table class="table is-fullwidth is-striped">
+                    <thead>
+                        <tr>
+                            <th>Learner</th>
+                            <th>Status</th>
+                            <th>Score</th>
+                            <th>Time Spent</th>
+                            <th>Last Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        report.learners.forEach(learner => {
+            const statusClass = {
+                'not_attempted': 'is-light',
+                'incomplete': 'is-warning',
+                'completed': 'is-success',
+                'passed': 'is-success',
+                'failed': 'is-danger',
+                'browsed': 'is-info'
+            }[learner.status] || 'is-light';
+            
+            learnersTable += `
+                <tr>
+                    <td>
+                        <strong>${learner.learner_name}</strong><br>
+                        <small class="has-text-grey">${learner.learner_id}</small>
+                    </td>
+                    <td>
+                        <span class="tag ${statusClass}">
+                            ${learner.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                    </td>
+                    <td>${learner.score !== null ? learner.score : '-'}</td>
+                    <td>${SCORMApp.formatDuration(learner.total_time)}</td>
+                    <td>${SCORMApp.formatDate(learner.updated_at)}</td>
+                </tr>
+            `;
+        });
+        
+        learnersTable += '</tbody></table></div>';
+    } else {
+        learnersTable = '<p class="has-text-grey has-text-centered p-4">No registrations yet</p>';
+    }
+    
+    return `
+        <div class="columns">
+            <div class="column is-3">
+                <div class="box has-text-centered">
+                    <p class="title is-4 has-text-primary">${report.total_registrations}</p>
+                    <p class="subtitle is-6">Total</p>
+                </div>
+            </div>
+            <div class="column is-3">
+                <div class="box has-text-centered">
+                    <p class="title is-4 has-text-success">${report.completed_registrations}</p>
+                    <p class="subtitle is-6">Completed</p>
+                </div>
+            </div>
+            <div class="column is-3">
+                <div class="box has-text-centered">
+                    <p class="title is-4 has-text-warning">${report.in_progress_registrations}</p>
+                    <p class="subtitle is-6">In Progress</p>
+                </div>
+            </div>
+            <div class="column is-3">
+                <div class="box has-text-centered">
+                    <p class="title is-4 has-text-info">${report.completion_rate.toFixed(1)}%</p>
+                    <p class="subtitle is-6">Completion Rate</p>
+                </div>
+            </div>
+        </div>
+        
+        ${report.avg_score ? `
+        <div class="notification is-primary is-light">
+            <strong>Average Score:</strong> ${report.avg_score.toFixed(1)}
+        </div>
+        ` : ''}
+        
+        <h3 class="subtitle is-6 mt-4">Recent Learner Activity</h3>
+        ${learnersTable}
+    `;
+}
+
+// Helper function to create slugs (matching server-side implementation)
+function createSlug(title) {
+    return title.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '');
+}

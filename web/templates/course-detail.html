@@ -1,0 +1,380 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="columns">
+    <div class="column is-8">
+        <nav class="breadcrumb" aria-label="breadcrumbs">
+            <ul>
+                <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="/courses">Courses</a></li>
+                <li class="is-active"><a href="#" aria-current="page">{{.Course.Title}}</a></li>
+            </ul>
+        </nav>
+        
+        {{if .IsEditing}}
+        <!-- Edit Mode -->
+        <div class="box">
+            <h1 class="title is-3">
+                <i class="fas fa-edit mr-2"></i>
+                Edit Course
+            </h1>
+            
+            <div id="form-errors"></div>
+            
+            <form hx-post="/courses/{{.Course.ID}}#{{.Slug}}" hx-target="#form-errors">
+                <input type="hidden" name="_method" value="PUT">
+                
+                <div class="field">
+                    <label class="label">Course Title <span class="has-text-danger">*</span></label>
+                    <div class="control has-icons-left">
+                        <input class="input" type="text" name="title" value="{{.Course.Title}}" required>
+                        <span class="icon is-small is-left">
+                            <i class="fas fa-book"></i>
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label class="label">Description</label>
+                    <div class="control">
+                        <textarea class="textarea" name="description" rows="4">{{.Course.Description}}</textarea>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label class="label">Version</label>
+                    <div class="control has-icons-left">
+                        <input class="input" type="text" name="version" value="{{.Course.Version}}">
+                        <span class="icon is-small is-left">
+                            <i class="fas fa-tag"></i>
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="field is-grouped">
+                    <div class="control">
+                        <button type="submit" class="button is-primary">
+                            <i class="fas fa-save mr-1"></i>
+                            Save Changes
+                        </button>
+                    </div>
+                    <div class="control">
+                        <a href="/courses/{{.Course.ID}}#{{.Slug}}" class="button is-light">
+                            <i class="fas fa-times mr-1"></i>
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {{else}}
+        <!-- View Mode -->
+        <div class="box">
+            <div class="level">
+                <div class="level-left">
+                    <div class="level-item">
+                        <div>
+                            <h1 class="title is-3">
+                                <i class="fas fa-book mr-2"></i>
+                                {{.Course.Title}}
+                            </h1>
+                            <p class="subtitle is-6">
+                                Version {{.Course.Version}} • Created {{.Course.CreatedAt.Format "Jan 2, 2006"}}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="level-right">
+                    <div class="level-item">
+                        <div class="buttons">
+                            <a href="/courses/{{.Course.ID}}#{{.Slug}}?edit=true" class="button is-info">
+                                <i class="fas fa-edit mr-1"></i>
+                                Edit
+                            </a>
+                            <button onclick="confirmDelete('{{.Course.ID}}', '{{.Course.Title}}')" class="button is-danger">
+                                <i class="fas fa-trash mr-1"></i>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {{if .Course.Description}}
+            <div class="content">
+                <h2 class="subtitle is-5">Description</h2>
+                <p>{{.Course.Description}}</p>
+            </div>
+            {{end}}
+            
+            <div class="columns">
+                <div class="column is-6">
+                    <div class="notification is-light">
+                        <h3 class="subtitle is-6">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Course Information
+                        </h3>
+                        <p><strong>ID:</strong> {{.Course.ID}}</p>
+                        <p><strong>Version:</strong> {{.Course.Version}}</p>
+                        <p><strong>Created:</strong> {{.Course.CreatedAt.Format "January 2, 2006 at 3:04 PM"}}</p>
+                        <p><strong>Last Updated:</strong> {{.Course.UpdatedAt.Format "January 2, 2006 at 3:04 PM"}}</p>
+                        {{if .Course.PackagePath}}
+                        <p><strong>SCORM Package:</strong> 
+                            <i class="fas fa-check-circle has-text-success mr-1"></i>
+                            Available
+                        </p>
+                        {{else}}
+                        <p><strong>SCORM Package:</strong> 
+                            <i class="fas fa-times-circle has-text-danger mr-1"></i>
+                            Not uploaded
+                        </p>
+                        {{end}}
+                    </div>
+                </div>
+                <div class="column is-6">
+                    <div class="notification is-primary is-light">
+                        <h3 class="subtitle is-6">
+                            <i class="fas fa-users mr-1"></i>
+                            Enrollment Statistics
+                        </h3>
+                        <p><strong>Total Registrations:</strong> {{.RegistrationCount}}</p>
+                        <div class="buttons mt-3">
+                            <a href="/registrations?course_id={{.Course.ID}}" class="button is-small is-primary">
+                                <i class="fas fa-eye mr-1"></i>
+                                View Registrations
+                            </a>
+                            <button onclick="launchCourse('{{.Course.ID}}')" class="button is-small is-success">
+                                <i class="fas fa-play mr-1"></i>
+                                Launch Course
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Course Analytics -->
+        <div class="box" hx-get="/api/reports/course/{{.Course.ID}}" hx-trigger="load" hx-target="#course-analytics">
+            <h2 class="subtitle is-5">
+                <i class="fas fa-chart-bar mr-2"></i>
+                Course Analytics
+            </h2>
+            <div id="course-analytics">
+                <div class="has-text-centered p-4">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p class="mt-2">Loading analytics...</p>
+                </div>
+            </div>
+        </div>
+        {{end}}
+    </div>
+    
+    <div class="column is-4">
+        <!-- Quick Actions -->
+        <div class="box">
+            <h2 class="subtitle is-5">
+                <i class="fas fa-magic mr-2"></i>
+                Quick Actions
+            </h2>
+            <div class="buttons is-fullwidth">
+                <button onclick="launchCourse('{{.Course.ID}}')" class="button is-success is-fullwidth">
+                    <i class="fas fa-play mr-1"></i>
+                    Launch Course
+                </button>
+                {{if not .Course.PackagePath}}
+                <button onclick="showUploadModal()" class="button is-link is-fullwidth">
+                    <i class="fas fa-upload mr-1"></i>
+                    Upload SCORM Package
+                </button>
+                {{end}}
+                <a href="/courses" class="button is-light is-fullwidth">
+                    <i class="fas fa-arrow-left mr-1"></i>
+                    Back to Courses
+                </a>
+            </div>
+        </div>
+        
+        <!-- Recent Activity -->
+        <div class="box">
+            <h2 class="subtitle is-5">
+                <i class="fas fa-clock mr-2"></i>
+                Recent Activity
+            </h2>
+            <div hx-get="/api/registrations?course_id={{.Course.ID}}&limit=5" hx-trigger="load" hx-target="#recent-activity">
+                <div id="recent-activity">
+                    <div class="has-text-centered p-2">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p class="is-size-7 mt-1">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal">
+    <div class="modal-background" onclick="hideDeleteModal()"></div>
+    <div class="modal-card">
+        <header class="modal-card-head">
+            <p class="modal-card-title">
+                <i class="fas fa-exclamation-triangle mr-2 has-text-danger"></i>
+                Confirm Deletion
+            </p>
+            <button class="delete" aria-label="close" onclick="hideDeleteModal()"></button>
+        </header>
+        <section class="modal-card-body">
+            <p>Are you sure you want to delete the course <strong id="delete-course-title"></strong>?</p>
+            <p class="has-text-danger mt-2">
+                <i class="fas fa-warning mr-1"></i>
+                This action cannot be undone and will also delete all associated registrations and CMI data.
+            </p>
+        </section>
+        <footer class="modal-card-foot">
+            <button id="confirm-delete-btn" class="button is-danger">
+                <i class="fas fa-trash mr-1"></i>
+                Delete Course
+            </button>
+            <button class="button" onclick="hideDeleteModal()">Cancel</button>
+        </footer>
+    </div>
+</div>
+
+<!-- SCORM Upload Modal -->
+<div id="uploadModal" class="modal">
+    <div class="modal-background" onclick="hideUploadModal()"></div>
+    <div class="modal-card">
+        <header class="modal-card-head">
+            <p class="modal-card-title">
+                <i class="fas fa-upload mr-2"></i>
+                Upload SCORM Package
+            </p>
+            <button class="delete" aria-label="close" onclick="hideUploadModal()"></button>
+        </header>
+        <section class="modal-card-body">
+            <p class="mb-4">Upload a SCORM package to replace the content for "{{.Course.Title}}".</p>
+            <form hx-post="/api/packages/upload" hx-encoding="multipart/form-data" hx-target="#upload-result">
+                <input type="hidden" name="title" value="{{.Course.Title}}">
+                <input type="hidden" name="description" value="{{.Course.Description}}">
+                
+                <div class="field">
+                    <label class="label">SCORM Package (ZIP)</label>
+                    <div class="control">
+                        <div class="file has-name is-fullwidth">
+                            <label class="file-label">
+                                <input class="file-input" type="file" name="package" accept=".zip" required>
+                                <span class="file-cta">
+                                    <span class="file-icon">
+                                        <i class="fas fa-upload"></i>
+                                    </span>
+                                    <span class="file-label">Choose a file...</span>
+                                </span>
+                                <span class="file-name">No file selected</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <div class="control">
+                        <button type="submit" class="button is-primary">
+                            <i class="fas fa-upload mr-1"></i>
+                            Upload Package
+                        </button>
+                    </div>
+                </div>
+            </form>
+            
+            <div id="upload-result"></div>
+        </section>
+    </div>
+</div>
+
+<script>
+let courseIdToDelete = null;
+
+function confirmDelete(courseId, courseTitle) {
+    courseIdToDelete = courseId;
+    document.getElementById('delete-course-title').textContent = courseTitle;
+    document.getElementById('deleteModal').classList.add('is-active');
+}
+
+function hideDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('is-active');
+    courseIdToDelete = null;
+}
+
+document.getElementById('confirm-delete-btn').addEventListener('click', function() {
+    if (courseIdToDelete) {
+        fetch(`/api/courses/${courseIdToDelete}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = '/courses';
+            } else {
+                alert('Error deleting course');
+            }
+        })
+        .catch(error => {
+            alert('Error deleting course: ' + error.message);
+        });
+    }
+});
+
+function launchCourse(courseId) {
+    const learnerName = prompt('Enter learner name:', 'Test Learner');
+    if (learnerName) {
+        const learnerId = prompt('Enter learner ID:', 'learner_' + Date.now());
+        if (learnerId) {
+            fetch(`/api/courses/${courseId}/launch?learner_id=${encodeURIComponent(learnerId)}&learner_name=${encodeURIComponent(learnerName)}`, {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(`Course launched! Registration ID: ${data.registration_id}`);
+                // Refresh analytics
+                htmx.trigger('#course-analytics', 'load');
+                htmx.trigger('#recent-activity', 'load');
+            })
+            .catch(error => {
+                alert('Error launching course: ' + error.message);
+            });
+        }
+    }
+}
+
+function showUploadModal() {
+    document.getElementById('uploadModal').classList.add('is-active');
+}
+
+function hideUploadModal() {
+    const modal = document.getElementById('uploadModal');
+    modal.classList.remove('is-active');
+    document.getElementById('upload-result').innerHTML = '';
+}
+
+// Handle file input display
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('file-input')) {
+        const fileName = e.target.files[0] ? e.target.files[0].name : 'No file selected';
+        const fileNameElement = e.target.parentNode.parentNode.querySelector('.file-name');
+        if (fileNameElement) {
+            fileNameElement.textContent = fileName;
+        }
+    }
+});
+
+// Handle successful upload
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.xhr.status === 201 && evt.detail.pathInfo.requestPath === '/api/packages/upload') {
+        document.getElementById('upload-result').innerHTML = '<div class="notification is-success"><i class="fas fa-check-circle mr-2"></i>Package uploaded successfully!</div>';
+        setTimeout(() => {
+            hideUploadModal();
+            // Refresh the page to show updated package info
+            window.location.reload();
+        }, 2000);
+    }
+});
+</script>
+{{end}}

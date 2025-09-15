@@ -26,7 +26,132 @@ servers:
     description: Production server
 
 paths:
+  # Web UI Endpoints
   /courses:
+    get:
+      summary: Course management page
+      description: Displays the course management web interface
+      tags:
+        - Web UI
+      responses:
+        '200':
+          description: Course management page
+          content:
+            text/html:
+              schema:
+                type: string
+  
+  /courses/create:
+    get:
+      summary: Course creation page
+      description: Displays the course creation form
+      tags:
+        - Web UI
+      responses:
+        '200':
+          description: Course creation page
+          content:
+            text/html:
+              schema:
+                type: string
+    post:
+      summary: Create course from form
+      description: Creates a new course from web form submission
+      tags:
+        - Web UI
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CourseCreateRequest'
+      responses:
+        '201':
+          description: Course created successfully (HTMX redirect)
+          headers:
+            HX-Redirect:
+              description: Redirect URL to course detail page
+              schema:
+                type: string
+        '400':
+          description: Form validation error
+          content:
+            text/html:
+              schema:
+                type: string
+  
+  /courses/{courseId}:
+    get:
+      summary: Course detail page
+      description: Displays detailed course information with edit/delete options
+      tags:
+        - Web UI
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the course
+        - name: edit
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Show edit form if true
+      responses:
+        '200':
+          description: Course detail page
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: Course not found
+    post:
+      summary: Update course from form
+      description: Updates course details from web form submission
+      tags:
+        - Web UI
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the course
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/CourseUpdateRequest'
+                - type: object
+                  properties:
+                    _method:
+                      type: string
+                      enum: ["PUT"]
+                      description: HTTP method override for form submission
+      responses:
+        '200':
+          description: Course updated successfully (HTMX redirect)
+          headers:
+            HX-Redirect:
+              description: Redirect URL to course detail page
+              schema:
+                type: string
+        '400':
+          description: Form validation error
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: Course not found
+  
+  # API Endpoints
+  /api/courses:
     get:
       summary: List all courses
       description: Retrieve a list of all SCORM courses in the system
@@ -112,6 +237,53 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     
+    put:
+      summary: Update a course
+      description: Update course details such as title, description, and version
+      tags:
+        - Courses
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the course
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CourseUpdateRequest'
+      responses:
+        '200':
+          description: Course updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Course not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
     delete:
       summary: Delete a course
       description: Remove a course and all associated data from the system
@@ -140,7 +312,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /courses/{courseId}/launch:
+  /api/courses/{courseId}/launch:
     get:
       summary: Launch a course
       description: Create a registration and return launch information for a learner
@@ -188,7 +360,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /packages/upload:
+  /api/packages/upload:
     post:
       summary: Upload SCORM package
       description: Upload and process a SCORM package ZIP file
@@ -238,7 +410,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /registrations:
+  /api/registrations:
     get:
       summary: List registrations
       description: Retrieve a list of learner registrations, optionally filtered by learner
@@ -315,7 +487,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /registrations/{registrationId}:
+  /api/registrations/{registrationId}:
     get:
       summary: Get registration details
       description: Retrieve detailed information about a specific registration
@@ -420,7 +592,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /registrations/{registrationId}/commit:
+  /api/registrations/{registrationId}/commit:
     post:
       summary: Commit registration state
       description: Save the current state of the registration
@@ -458,7 +630,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /registrations/{registrationId}/terminate:
+  /api/registrations/{registrationId}/terminate:
     post:
       summary: Terminate registration session
       description: End the current learning session and mark as terminated
@@ -496,7 +668,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /registrations/{registrationId}/scorm-api:
+  /api/registrations/{registrationId}/scorm-api:
     get:
       summary: Get SCORM JavaScript API
       description: Retrieve the JavaScript API implementation for SCORM content
@@ -524,7 +696,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /cmi/{registrationId}:
+  /api/cmi/{registrationId}:
     get:
       summary: Get CMI data
       description: Retrieve CMI (Computer Managed Instruction) data for a registration
@@ -617,7 +789,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /reports/summary:
+  /api/reports/summary:
     get:
       summary: Get system summary report
       description: Retrieve overall system statistics and metrics
@@ -637,7 +809,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /reports/course/{courseId}:
+  /api/reports/course/{courseId}:
     get:
       summary: Get course report
       description: Retrieve detailed analytics for a specific course
@@ -670,7 +842,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /reports/learner/{learnerId}:
+  /api/reports/learner/{learnerId}:
     get:
       summary: Get learner report
       description: Retrieve detailed analytics for a specific learner
@@ -703,7 +875,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /reports/completion:
+  /api/reports/completion:
     get:
       summary: Get completion report
       description: Retrieve completion statistics across courses
@@ -779,6 +951,25 @@ components:
         description:
           type: string
           description: Course description
+        version:
+          type: string
+          description: Course version
+          default: "1.0"
+      required:
+        - title
+    
+    CourseUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Course title
+        description:
+          type: string
+          description: Course description
+        version:
+          type: string
+          description: Course version
       required:
         - title
 
@@ -1129,8 +1320,10 @@ components:
         - error
 
 tags:
+  - name: Web UI
+    description: Web interface endpoints (HTML responses)
   - name: Courses
-    description: Course management operations
+    description: Course management API operations
   - name: Packages
     description: SCORM package upload and processing
   - name: Registrations

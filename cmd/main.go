@@ -6,6 +6,7 @@ import (
 	"os"
 	"scorm-cmi-app/internal/database"
 	"scorm-cmi-app/internal/handlers"
+	"strings"
 )
 
 func main() {
@@ -31,6 +32,30 @@ func main() {
 	mux.HandleFunc("/courses/", h.HandleCourseDetailPage)
 	mux.HandleFunc("/courses", h.HandleCoursesListPage)
 	mux.HandleFunc("/registrations", h.HandleRegistrationsPage)
+
+	// New SCORM routes (without HTMX)
+	mux.HandleFunc("/scorm", h.HandleSCORMList)
+	mux.HandleFunc("/scorm/upload", h.HandleSCORMUpload)
+	mux.HandleFunc("/scorm/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if path == "/scorm/" {
+			h.HandleSCORMList(w, r)
+			return
+		}
+
+		// Handle specific SCORM file actions
+		if len(path) > 7 { // "/scorm/" = 7 chars
+			if strings.HasSuffix(path, "/delete") {
+				h.HandleSCORMDelete(w, r)
+			} else if strings.HasSuffix(path, "/update") {
+				h.HandleSCORMUpdate(w, r)
+			} else if strings.HasSuffix(path, "/launch") {
+				h.HandleSCORMLaunch(w, r)
+			} else {
+				h.HandleSCORMDetail(w, r)
+			}
+		}
+	})
 
 	// API routes (more specific patterns first)
 	mux.HandleFunc("/api/courses/", h.HandleCourse)

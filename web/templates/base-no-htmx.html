@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - SCORM CMI App</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            display: none;
+        }
+        .modal.is-active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-card {
+            background: white;
+            border-radius: 6px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+        }
+        .scorm-content {
+            width: 100%;
+            height: 600px;
+            border: none;
+        }
+        .course-card {
+            transition: transform 0.2s;
+        }
+        .course-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar is-primary" role="navigation" aria-label="main navigation">
+        <div class="navbar-brand">
+            <a class="navbar-item has-text-weight-bold" href="/">
+                <i class="fas fa-graduation-cap mr-2"></i>
+                SCORM CMI App
+            </a>
+            
+            <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navbarMenu">
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+            </a>
+        </div>
+        
+        <div id="navbarMenu" class="navbar-menu">
+            <div class="navbar-start">
+                <a class="navbar-item" href="/">
+                    <i class="fas fa-tachometer-alt mr-1"></i>
+                    Dashboard
+                </a>
+                <a class="navbar-item" href="/scorm">
+                    <i class="fas fa-book mr-1"></i>
+                    SCORM Files
+                </a>
+                <a class="navbar-item" href="/courses">
+                    <i class="fas fa-graduation-cap mr-1"></i>
+                    Courses (HTMX)
+                </a>
+                <a class="navbar-item" href="/registrations">
+                    <i class="fas fa-users mr-1"></i>
+                    Registrations
+                </a>
+            </div>
+        </div>
+    </nav>
+    
+    <main class="section">
+        <div class="container">
+            {{block "content" .}}{{end}}
+        </div>
+    </main>
+    
+    <footer class="footer">
+        <div class="content has-text-centered">
+            <p><strong>SCORM CMI App</strong> - A comprehensive SCORM 2004 learning management system.</p>
+        </div>
+    </footer>
+    
+    <script>
+        // Navbar burger toggle
+        document.addEventListener('DOMContentLoaded', () => {
+            const $navbarBurgers = Array.prototype.slice.call(document.querySelectorAll('.navbar-burger'), 0);
+            if ($navbarBurgers.length > 0) {
+                $navbarBurgers.forEach(el => {
+                    el.addEventListener('click', () => {
+                        const target = el.dataset.target;
+                        const $target = document.getElementById(target);
+                        el.classList.toggle('is-active');
+                        $target.classList.toggle('is-active');
+                    });
+                });
+            }
+        });
+        
+        // Modal functions
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('is-active');
+        }
+        
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.remove('is-active');
+        }
+        
+        // File input display
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('file-input')) {
+                const fileName = e.target.files[0] ? e.target.files[0].name : 'No file selected';
+                const fileNameElement = e.target.parentNode.parentNode.querySelector('.file-name');
+                if (fileNameElement) {
+                    fileNameElement.textContent = fileName;
+                }
+            }
+        });
+        
+        // Search functionality
+        function filterItems(searchInputId, itemsSelector) {
+            const searchTerm = document.getElementById(searchInputId).value.toLowerCase();
+            const items = document.querySelectorAll(itemsSelector);
+            
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+    </script>
+    
+    {{block "scripts" .}}{{end}}
+</body>
+</html>

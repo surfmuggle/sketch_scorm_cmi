@@ -1,0 +1,353 @@
+{{template "base-no-htmx.html" .}}
+
+{{define "content"}}
+<div class="columns">
+    <div class="column">
+        <nav class="breadcrumb" aria-label="breadcrumbs">
+            <ul>
+                <li><a href="/"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="/scorm">SCORM Files</a></li>
+                <li class="is-active"><a href="#" aria-current="page">{{.Course.Title}}</a></li>
+            </ul>
+        </nav>
+        
+        {{if .Message}}
+            <div class="notification {{if .MessageType}}is-{{.MessageType}}{{else}}is-info{{end}}">
+                <button class="delete" onclick="this.parentElement.remove()"></button>
+                {{.Message}}
+            </div>
+        {{end}}
+        
+        <div class="box">
+            <div class="level">
+                <div class="level-left">
+                    <div class="level-item">
+                        <div>
+                            <h1 class="title is-3">
+                                <i class="fas fa-file-archive mr-2 has-text-primary"></i>
+                                {{.Course.Title}}
+                            </h1>
+                            <p class="subtitle is-5">Version: {{.Course.Version}}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="level-right">
+                    <div class="level-item">
+                        <div class="buttons">
+                            {{if not .IsEditing}}
+                                <a href="/scorm/{{.Course.ID}}?edit=true" class="button is-info">
+                                    <i class="fas fa-edit mr-1"></i>
+                                    Edit
+                                </a>
+                            {{end}}
+                            {{if .Course.PackagePath}}
+                                <button onclick="launchSCORM('{{.Course.ID}}', '{{.Course.Title}}')" class="button is-success">
+                                    <i class="fas fa-play mr-1"></i>
+                                    Launch Course
+                                </button>
+                            {{end}}
+                            <a href="/scorm/{{.Course.ID}}/delete" onclick="return confirm('Are you sure you want to delete this SCORM file and all associated registrations?')" class="button is-danger">
+                                <i class="fas fa-trash mr-1"></i>
+                                Delete
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {{if .IsEditing}}
+                <!-- Edit Form -->
+                <form action="/scorm/{{.Course.ID}}/update" method="POST">
+                    <div class="field">
+                        <label class="label">Title</label>
+                        <div class="control">
+                            <input class="input" type="text" name="title" value="{{.Course.Title}}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="field">
+                        <label class="label">Description</label>
+                        <div class="control">
+                            <textarea class="textarea" name="description" rows="4">{{.Course.Description}}</textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="field">
+                        <label class="label">Version</label>
+                        <div class="control">
+                            <input class="input" type="text" name="version" value="{{.Course.Version}}">
+                        </div>
+                    </div>
+                    
+                    <div class="field is-grouped">
+                        <div class="control">
+                            <button type="submit" class="button is-primary">
+                                <i class="fas fa-save mr-1"></i>
+                                Save Changes
+                            </button>
+                        </div>
+                        <div class="control">
+                            <a href="/scorm/{{.Course.ID}}" class="button">
+                                <i class="fas fa-times mr-1"></i>
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            {{else}}
+                <!-- View Mode -->
+                <div class="content">
+                    {{if .Course.Description}}
+                        <h3>Description</h3>
+                        <p>{{.Course.Description}}</p>
+                    {{end}}
+                    
+                    <div class="columns">
+                        <div class="column is-6">
+                            <h3>Course Information</h3>
+                            <table class="table is-fullwidth">
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Course ID</strong></td>
+                                        <td><code>{{.Course.ID}}</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Version</strong></td>
+                                        <td>{{.Course.Version}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Created</strong></td>
+                                        <td>{{.Course.CreatedAt.Format "January 02, 2006 at 15:04 MST"}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Updated</strong></td>
+                                        <td>{{.Course.UpdatedAt.Format "January 02, 2006 at 15:04 MST"}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Package Status</strong></td>
+                                        <td>
+                                            {{if .Course.PackagePath}}
+                                                <span class="tag is-success">
+                                                    <i class="fas fa-check mr-1"></i>
+                                                    Uploaded
+                                                </span>
+                                            {{else}}
+                                                <span class="tag is-warning">
+                                                    <i class="fas fa-exclamation mr-1"></i>
+                                                    No Package
+                                                </span>
+                                            {{end}}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="column is-6">
+                            <h3>Usage Statistics</h3>
+                            <table class="table is-fullwidth">
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Total Registrations</strong></td>
+                                        <td>
+                                            <span class="tag is-primary">{{.RegistrationCount}}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Completion Rate</strong></td>
+                                        <td>
+                                            {{if gt .RegistrationCount 0}}
+                                                <span class="tag is-info">{{.CompletionRate}}%</span>
+                                            {{else}}
+                                                <span class="tag is-light">N/A</span>
+                                            {{end}}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Average Score</strong></td>
+                                        <td>
+                                            {{if .AverageScore}}
+                                                <span class="tag is-success">{{printf "%.1f" .AverageScore}}</span>
+                                            {{else}}
+                                                <span class="tag is-light">N/A</span>
+                                            {{end}}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {{end}}
+        </div>
+        
+        <!-- Recent Registrations -->
+        {{if .Registrations}}
+        <div class="box">
+            <h3 class="title is-5">Recent Registrations</h3>
+            <div class="table-container">
+                <table class="table is-fullwidth is-striped">
+                    <thead>
+                        <tr>
+                            <th>Learner</th>
+                            <th>Status</th>
+                            <th>Score</th>
+                            <th>Started</th>
+                            <th>Last Activity</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .Registrations}}
+                        <tr>
+                            <td>
+                                <strong>{{.LearnerName}}</strong><br>
+                                <small class="has-text-grey">ID: {{.LearnerID}}</small>
+                            </td>
+                            <td>
+                                <span class="tag 
+                                    {{if eq .Status "completed"}}is-success
+                                    {{else if eq .Status "incomplete"}}is-warning
+                                    {{else if eq .Status "failed"}}is-danger
+                                    {{else}}is-light{{end}}">
+                                    {{.Status}}
+                                </span>
+                            </td>
+                            <td>
+                                {{if .Score}}
+                                    {{printf "%.1f" .Score}}
+                                    {{if .MaxScore}}/{{printf "%.1f" .MaxScore}}{{end}}
+                                {{else}}
+                                    <span class="has-text-grey">N/A</span>
+                                {{end}}
+                            </td>
+                            <td>{{.CreatedAt.Format "Jan 02, 15:04"}}</td>
+                            <td>{{.UpdatedAt.Format "Jan 02, 15:04"}}</td>
+                            <td>
+                                <div class="buttons are-small">
+                                    <a href="/registrations/{{.ID}}" class="button is-small is-info">
+                                        <i class="fas fa-eye mr-1"></i>
+                                        View
+                                    </a>
+                                    <button onclick="launchRegistration('{{.ID}}')" class="button is-small is-success">
+                                        <i class="fas fa-play mr-1"></i>
+                                        Launch
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+            
+            {{if gt .TotalRegistrations 5}}
+                <div class="has-text-centered mt-4">
+                    <a href="/registrations?course={{.Course.ID}}" class="button is-link">
+                        <i class="fas fa-list mr-1"></i>
+                        View All Registrations ({{.TotalRegistrations}})
+                    </a>
+                </div>
+            {{end}}
+        </div>
+        {{end}}
+        
+        <!-- Package Upload -->
+        {{if not .Course.PackagePath}}
+        <div class="box">
+            <h3 class="title is-5 has-text-warning">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                No SCORM Package Uploaded
+            </h3>
+            <p class="mb-4">This course doesn't have a SCORM package associated with it. Upload a ZIP file containing the SCORM content to enable course launches.</p>
+            
+            <form action="/scorm/{{.Course.ID}}/upload-package" method="POST" enctype="multipart/form-data" class="box">
+                <div class="field">
+                    <label class="label">SCORM Package (ZIP)</label>
+                    <div class="control">
+                        <div class="file has-name is-fullwidth">
+                            <label class="file-label">
+                                <input class="file-input" type="file" name="package" accept=".zip" required>
+                                <span class="file-cta">
+                                    <span class="file-icon">
+                                        <i class="fas fa-upload"></i>
+                                    </span>
+                                    <span class="file-label">Choose SCORM package...</span>
+                                </span>
+                                <span class="file-name">No file selected</span>
+                            </label>
+                        </div>
+                    </div>
+                    <p class="help">Select a ZIP file containing SCORM 2004 content with imsmanifest.xml</p>
+                </div>
+                
+                <div class="field">
+                    <div class="control">
+                        <button type="submit" class="button is-primary">
+                            <i class="fas fa-upload mr-1"></i>
+                            Upload Package
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {{end}}
+    </div>
+</div>
+
+<!-- SCORM Content Modal -->
+<div id="scormModal" class="modal">
+    <div class="modal-background" onclick="hideModal('scormModal')"></div>
+    <div class="modal-card" style="width: 90%; height: 90%;">
+        <header class="modal-card-head">
+            <p class="modal-card-title" id="scorm-modal-title">
+                <i class="fas fa-play mr-2"></i>
+                SCORM Content
+            </p>
+            <button class="delete" aria-label="close" onclick="hideModal('scormModal')"></button>
+        </header>
+        <section class="modal-card-body" style="padding: 0;">
+            <iframe id="scorm-content-frame" class="scorm-content" src="about:blank"></iframe>
+        </section>
+        <footer class="modal-card-foot">
+            <button type="button" class="button is-primary" onclick="hideModal('scormModal')">
+                <i class="fas fa-times mr-1"></i>
+                Close
+            </button>
+        </footer>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+    function launchSCORM(courseId, title) {
+        const learnerName = prompt('Enter learner name:', 'Default Learner');
+        if (!learnerName) return;
+        
+        const learnerId = prompt('Enter learner ID:', 'learner_' + Date.now());
+        if (!learnerId) return;
+        
+        // Create launch URL with parameters
+        const launchUrl = `/scorm/${courseId}/launch?learner_id=${encodeURIComponent(learnerId)}&learner_name=${encodeURIComponent(learnerName)}`;
+        
+        // Set modal title and content
+        document.getElementById('scorm-modal-title').innerHTML = `<i class="fas fa-play mr-2"></i>${title}`;
+        document.getElementById('scorm-content-frame').src = launchUrl;
+        
+        // Show modal
+        showModal('scormModal');
+    }
+    
+    function launchRegistration(registrationId) {
+        // Launch existing registration
+        const launchUrl = `/registrations/${registrationId}/launch`;
+        
+        // Set modal title and content
+        document.getElementById('scorm-modal-title').innerHTML = `<i class="fas fa-play mr-2"></i>Continue Learning`;
+        document.getElementById('scorm-content-frame').src = launchUrl;
+        
+        // Show modal
+        showModal('scormModal');
+    }
+</script>
+{{end}}

@@ -1,22 +1,33 @@
-# SCORM CMI Application
 
+# Disclaimer 
+This is a work in progress unfinished and 99.99% [vibe coded](https://www.urbandictionary.com/define.php?term=Vibe+Coding) app. 
+
+Quote:
+> In other words, it's where random non-technical monkeys with little to no programming language, dish out sloppy games and other software through blindly copy-pasting AI generated code from LLMs like ChatGPT, Claude, and Cursor to make fast and easy money.
+
+Do not use it or expect anything from it. 
+You have been warned. 
+
+# SCORM CMI Application
 A comprehensive Go-based web application for managing SCORM 2004 courses and Computer Managed Instruction (CMI) data. This application provides a REST API and HTMX-powered web interface for uploading SCORM packages, managing learner registrations, tracking progress, and generating learning analytics reports.
 
-## Features
+## Features - Vaporware
 
-### 📚 Course Management
-- Upload and validate SCORM 2004 packages (ZIP files)
-- Parse and store SCORM manifests
-- Extract Shareable Content Objects (SCOs)
-- Course metadata management
+> The bot lied here - none of this is working see [Vaporware](https://www.urbandictionary.com/define.php?term=Vaporware) 
 
-### 👥 Learner Registration
+### 📚 Course Management 🚫
+- Upload and validate SCORM 2004 packages (ZIP files) [⏳ open #4](https://github.com/surfmuggle/sketch_scorm_cmi/issues/4)
+- Parse and store SCORM manifests 🔴
+- Extract Shareable Content Objects (SCOs) 🔴
+- Course metadata management 🔴
+
+### 👥 Learner Registration 🚫
 - Create learner enrollments in courses
 - Launch courses with automatic registration
 - Track multiple registrations per learner
 - Manage registration states and lifecycle
 
-### 📊 CMI Data Tracking
+### 📊 CMI Data Tracking 🚫
 Supports all major SCORM 2004 CMI data elements:
 - **Core elements**: lesson_status, score (raw/min/max), session_time, total_time
 - **Navigation**: location (bookmarking), entry/exit conditions
@@ -24,14 +35,14 @@ Supports all major SCORM 2004 CMI data elements:
 - **Learner info**: learner_id, learner_name
 - **Custom interactions**: detailed interaction tracking
 
-### 📈 Learning Analytics
+### 📈 Learning Analytics 🚫
 - System-wide summary statistics
 - Per-course completion reports
 - Individual learner progress tracking
 - Completion rate analysis
 - Score analytics and averages
 
-### 🔧 Technical Features
+### 🔧 Technical Features 🚫
 - **REST API**: Comprehensive OpenAPI 3.0 specification
 - **Web Interface**: Modern HTMX-powered frontend
 - **Database**: SQLite with proper schema and indexing
